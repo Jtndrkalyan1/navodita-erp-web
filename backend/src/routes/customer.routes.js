@@ -1,0 +1,28 @@
+const express = require('express');
+const router = express.Router();
+const { authenticate } = require('../middleware/auth');
+const customerController = require('../controllers/customer.controller');
+const statementController = require('../controllers/statement.controller');
+
+// Apply auth to all routes
+router.use(authenticate);
+
+// GET / - List all customers with pagination, search, sort
+router.get('/', customerController.list);
+
+// GET /:id/statement - Get customer ledger statement
+router.get('/:id/statement', statementController.getCustomerStatement);
+
+// GET /:id - Get customer by ID with addresses and invoice summary
+router.get('/:id', customerController.getById);
+
+// POST / - Create customer with auto-generated code
+router.post('/', customerController.create);
+
+// PUT /:id - Update customer
+router.put('/:id', customerController.update);
+
+// DELETE /:id - Soft delete (check no linked invoices)
+router.delete('/:id', customerController.remove);
+
+module.exports = router;

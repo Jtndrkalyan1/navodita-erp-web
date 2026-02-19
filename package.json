@@ -1,0 +1,30 @@
+{
+  "name": "navodita-erp-web",
+  "version": "1.0.0",
+  "description": "NavoditaERP - Cross-platform offline-first ERP for Navodita Apparel Pvt. Ltd.",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "NODE_ENV=production node backend/src/index.js",
+    "production": "npm run build && npm start",
+    "db:migrate": "cd backend && npx knex migrate:latest",
+    "db:seed": "cd backend && npx knex seed:run",
+    "db:reset": "cd backend && npx knex migrate:rollback --all && npx knex migrate:latest && npx knex seed:run",
+    "setup": "npm install && npm run db:migrate && npm run db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "multer": "^2.0.2",
+    "pdfjs-dist": "^5.4.624"
+  }
+}

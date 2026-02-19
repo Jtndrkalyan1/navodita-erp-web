@@ -1,0 +1,15 @@
+const express = require('express');
+const router = express.Router();
+const controller = require('../controllers/bankAccount.controller');
+const { authenticate } = require('../middleware/auth');
+
+router.use(authenticate);
+
+router.get('/summary', controller.getSummary);
+router.get('/', controller.list);
+router.get('/:id', controller.getById);
+router.post('/', controller.create);
+router.put('/:id', controller.update);
+router.delete('/:id', controller.remove);
+
+module.exports = router;

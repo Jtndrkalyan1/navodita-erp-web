@@ -1,0 +1,37 @@
+{
+  "name": "navodita-erp-backend",
+  "version": "1.0.0",
+  "description": "NavoditaERP Backend - Node.js + Express + PostgreSQL",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "NODE_OPTIONS='--max-old-space-size=4096' nodemon src/index.js",
+    "start": "node --max-old-space-size=4096 src/index.js",
+    "migrate": "knex migrate:latest",
+    "migrate:rollback": "knex migrate:rollback",
+    "seed": "knex seed:run"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "knex": "^3.1.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^8.0.1",
+    "papaparse": "^5.5.3",
+    "pdfjs-dist": "^5.4.624",
+    "pg": "^8.13.1",
+    "puppeteer": "^24.37.2",
+    "uuid": "^11.0.5",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

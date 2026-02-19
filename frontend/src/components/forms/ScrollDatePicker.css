@@ -1,0 +1,248 @@
+/* ═══════════════════════════════════════════════════════════════
+   ScrollDatePicker - iOS-style Drum/Wheel Date Picker
+   Pure CSS with scroll-snap for smooth selection
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Wrapper */
+.sdp-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+/* ─── Dropdown Panel ──────────────────────────────────────── */
+.sdp-dropdown {
+  position: absolute;
+  left: 0;
+  z-index: 9999;
+  width: 320px;
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  box-shadow:
+    0 20px 60px -12px rgba(0, 0, 0, 0.15),
+    0 8px 24px -8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: sdp-fadeIn 0.18s ease-out;
+}
+
+.sdp-dropdown-below {
+  top: calc(100% + 6px);
+}
+
+.sdp-dropdown-above {
+  bottom: calc(100% + 6px);
+}
+
+@keyframes sdp-fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ─── Header ──────────────────────────────────────────────── */
+.sdp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.sdp-header-date {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.sdp-today-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: #0071DC;
+  background: transparent;
+  border: 1px solid #0071DC;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sdp-today-btn:hover {
+  background: #0071DC;
+  color: #fff;
+}
+
+/* ─── Wheels Container ────────────────────────────────────── */
+.sdp-wheels {
+  display: flex;
+  gap: 2px;
+  padding: 8px 12px;
+  background: #FAFBFC;
+}
+
+/* ─── Column ──────────────────────────────────────────────── */
+.sdp-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.sdp-column-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9CA3AF;
+  margin-bottom: 6px;
+}
+
+/* ─── Scroll Outer (holds highlight bar + scrollable area) ── */
+.sdp-scroll-outer {
+  position: relative;
+  width: 100%;
+  height: 200px; /* 5 items * 40px */
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+/* Highlight bar - the centered selection indicator */
+.sdp-highlight-bar {
+  position: absolute;
+  top: 80px; /* (200 - 40) / 2 */
+  left: 4px;
+  right: 4px;
+  height: 40px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1.5px solid #0071DC;
+  box-shadow: 0 1px 3px rgba(0, 113, 220, 0.1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ─── Scroll Container ────────────────────────────────────── */
+.sdp-scroll-container {
+  width: 100%;
+  height: 200px;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 2;
+
+  /* Hide scrollbar */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sdp-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Items ───────────────────────────────────────────────── */
+.sdp-item {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 400;
+  color: #9CA3AF;
+  cursor: pointer;
+  user-select: none;
+  scroll-snap-align: start;
+  transition: color 0.15s, font-weight 0.15s;
+  position: relative;
+  z-index: 3;
+}
+
+.sdp-item:hover:not(.sdp-item-padding) {
+  color: #6B7280;
+}
+
+.sdp-item-selected {
+  color: #1F2937;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.sdp-item-padding {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* Fade effect at top/bottom */
+.sdp-scroll-outer::before,
+.sdp-scroll-outer::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 60px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.sdp-scroll-outer::before {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(250, 251, 252, 0.95), rgba(250, 251, 252, 0));
+}
+
+.sdp-scroll-outer::after {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(250, 251, 252, 0.95), rgba(250, 251, 252, 0));
+}
+
+/* ─── Footer ──────────────────────────────────────────────── */
+.sdp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 14px;
+  border-top: 1px solid #F3F4F6;
+  background: #ffffff;
+}
+
+.sdp-clear-btn {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B7280;
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sdp-clear-btn:hover {
+  color: #EF4444;
+  background: #FEF2F2;
+}
+
+.sdp-done-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background: #0071DC;
+  border: none;
+  padding: 6px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sdp-done-btn:hover {
+  background: #005BB5;
+}
+
+.sdp-done-btn:active {
+  transform: scale(0.97);
+}
