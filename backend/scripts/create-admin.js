@@ -8,6 +8,7 @@
 require('dotenv').config();
 const db = require('../src/config/database');
 const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
 
 async function createAdminUser() {
   try {
@@ -29,19 +30,29 @@ async function createAdminUser() {
     // Hash password
     const hashedPassword = await bcrypt.hash('Admin@123', 10);
 
+    // Check if we're using MySQL (doesn't auto-generate UUIDs)
+    const isMySQL = db.client.config.client === 'mysql' || db.client.config.client === 'mysql2';
+
     // Create admin user
+    const adminData = {
+      username: 'admin',
+      email: 'admin@navodita.com',
+      password_hash: hashedPassword,
+      full_name: 'System Administrator',
+      role: 'Admin',
+      is_active: true,
+      failed_login_attempts: 0,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    // Add UUID for MySQL
+    if (isMySQL) {
+      adminData.id = uuidv4();
+    }
+
     const [user] = await db('app_users')
-      .insert({
-        username: 'admin',
-        email: 'admin@navodita.com',
-        password_hash: hashedPassword,
-        full_name: 'System Administrator',
-        role: 'Admin',
-        is_active: true,
-        failed_login_attempts: 0,
-        created_at: new Date(),
-        updated_at: new Date(),
-      })
+      .insert(adminData)
       .returning('*');
 
     console.log('✅ Admin user created successfully!\n');
