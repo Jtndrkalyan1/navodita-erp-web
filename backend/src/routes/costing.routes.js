@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const db = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 // ── Multer config for costing image uploads ────────────────────────
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'costing');
@@ -223,7 +223,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE /:id - Delete costing sheet and all line items
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authorize('Admin'), async (req, res, next) => {
   try {
     const sheet = await db('costing_sheets').where({ id: req.params.id }).first();
     if (!sheet) return res.status(404).json({ error: 'Costing sheet not found' });

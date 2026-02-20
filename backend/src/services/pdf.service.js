@@ -275,7 +275,7 @@ function totalsBlock(doc, currency = 'INR') {
 <div class="totals-section">
   <table class="totals-table">${rows.join('')}</table>
 </div>
-<div class="amount-words"><strong>Amount in words:</strong> ${amountInWords(parseFloat(doc.total_amount) || 0)}</div>`;
+<div class="amount-words"><strong>Amount in words:</strong> ${currency === 'INR' ? amountInWords(parseFloat(doc.total_amount) || 0) : `${currency} ${(parseFloat(doc.total_amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Only`}</div>`;
 }
 
 // ── Footer helper ──────────────────────────────────────────────────────────
@@ -689,7 +689,7 @@ ${allocations && allocations.length > 0 ? `
   <thead><tr><th class="text-center">#</th><th>Invoice</th><th class="text-right">Invoice Amount</th><th class="text-right">Applied</th></tr></thead>
   <tbody>${allocRows}</tbody>
 </table>` : ''}
-<div class="amount-words"><strong>Amount in words:</strong> ${amountInWords(parseFloat(payment.amount) || 0)}</div>
+<div class="amount-words"><strong>Amount in words:</strong> ${currency === 'INR' ? amountInWords(parseFloat(payment.amount) || 0) : `${currency} ${(parseFloat(payment.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Only`}</div>
 ${footerBlock(company, payment.notes, null)}`;
 
   return baseTemplate(`Payment ${payment.payment_number}`, body);
@@ -730,7 +730,7 @@ ${allocations && allocations.length > 0 ? `
   <thead><tr><th class="text-center">#</th><th>Bill</th><th class="text-right">Bill Amount</th><th class="text-right">Applied</th></tr></thead>
   <tbody>${allocRows}</tbody>
 </table>` : ''}
-<div class="amount-words"><strong>Amount in words:</strong> ${amountInWords(parseFloat(payment.amount) || 0)}</div>
+<div class="amount-words"><strong>Amount in words:</strong> ${currency === 'INR' ? amountInWords(parseFloat(payment.amount) || 0) : `${currency} ${(parseFloat(payment.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Only`}</div>
 ${footerBlock(company, payment.notes, null)}`;
 
   return baseTemplate(`Payment ${payment.payment_number}`, body);

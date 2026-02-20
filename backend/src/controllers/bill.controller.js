@@ -73,7 +73,8 @@ const list = async (req, res, next) => {
         'bills.*',
         'vendors.display_name as vendor_name',
         'vendors.email as vendor_email'
-      );
+      )
+      .whereNull('bills.deleted_at');
 
     if (status) query = query.where('bills.status', status);
     if (vendor_id) query = query.where('bills.vendor_id', vendor_id);
@@ -110,7 +111,8 @@ const getStats = async (req, res, next) => {
 
     let query = db('bills')
       .leftJoin('vendors', 'bills.vendor_id', 'vendors.id')
-      .whereNot('bills.status', 'Cancelled');
+      .whereNot('bills.status', 'Cancelled')
+      .whereNull('bills.deleted_at');
 
     if (status) query = query.where('bills.status', status);
     if (vendor_id) query = query.where('bills.vendor_id', vendor_id);
@@ -162,6 +164,7 @@ const getById = async (req, res, next) => {
         'vendors.gstin as vendor_gstin'
       )
       .where('bills.id', id)
+      .whereNull('bills.deleted_at')
       .first();
 
     if (!bill) {
@@ -241,34 +244,39 @@ const create = async (req, res, next) => {
     billData.amount_paid = amountPaid;
     billData.balance_due = parseFloat((totalAmount - amountPaid).toFixed(2));
 
-    const [bill] = await db('bills').insert(billData).returning('*');
+    // Insert bill + items in a transaction
+    const result = await db.transaction(async (trx) => {
+      const [bill] = await trx('bills').insert(billData).returning('*');
 
-    if (calculatedItems.length > 0) {
-      const itemRows = calculatedItems.map((item) => ({
-        bill_id: bill.id,
-        item_id: item.item_id || null,
-        account_id: item.account_id || null,
-        item_name: item.item_name,
-        description: item.description,
-        hsn_code: item.hsn_code,
-        quantity: item.quantity,
-        unit: item.unit,
-        rate: item.rate,
-        discount_percent: item.discount_percent,
-        discount_amount: item.discount_amount,
-        gst_rate: item.gst_rate,
-        igst_amount: item.igst_amount,
-        cgst_amount: item.cgst_amount,
-        sgst_amount: item.sgst_amount,
-        amount: item.amount,
-        sort_order: item.sort_order,
-      }));
-      await db('bill_items').insert(itemRows);
-    }
+      if (calculatedItems.length > 0) {
+        const itemRows = calculatedItems.map((item) => ({
+          bill_id: bill.id,
+          item_id: item.item_id || null,
+          account_id: item.account_id || null,
+          item_name: item.item_name,
+          description: item.description,
+          hsn_code: item.hsn_code,
+          quantity: item.quantity,
+          unit: item.unit,
+          rate: item.rate,
+          discount_percent: item.discount_percent,
+          discount_amount: item.discount_amount,
+          gst_rate: item.gst_rate,
+          igst_amount: item.igst_amount,
+          cgst_amount: item.cgst_amount,
+          sgst_amount: item.sgst_amount,
+          amount: item.amount,
+          sort_order: item.sort_order,
+        }));
+        await trx('bill_items').insert(itemRows);
+      }
 
-    const savedItems = await db('bill_items').where({ bill_id: bill.id }).orderBy('sort_order');
+      const savedItems = await trx('bill_items').where({ bill_id: bill.id }).orderBy('sort_order');
 
-    res.status(201).json({ data: { ...bill, items: savedItems } });
+      return { bill, savedItems };
+    });
+
+    res.status(201).json({ data: { ...result.bill, items: result.savedItems } });
   } catch (err) {
     next(err);
   }
@@ -328,39 +336,51 @@ const update = async (req, res, next) => {
       billData.total_amount = parseFloat(totalAmount.toFixed(2));
       billData.amount_paid = amountPaid;
       billData.balance_due = parseFloat((totalAmount - amountPaid).toFixed(2));
-
-      await db('bill_items').where({ bill_id: id }).del();
-
-      if (calculatedItems.length > 0) {
-        const itemRows = calculatedItems.map((item) => ({
-          bill_id: id,
-          item_id: item.item_id || null,
-          account_id: item.account_id || null,
-          item_name: item.item_name,
-          description: item.description,
-          hsn_code: item.hsn_code,
-          quantity: item.quantity,
-          unit: item.unit,
-          rate: item.rate,
-          discount_percent: item.discount_percent,
-          discount_amount: item.discount_amount,
-          gst_rate: item.gst_rate,
-          igst_amount: item.igst_amount,
-          cgst_amount: item.cgst_amount,
-          sgst_amount: item.sgst_amount,
-          amount: item.amount,
-          sort_order: item.sort_order,
-        }));
-        await db('bill_items').insert(itemRows);
-      }
     }
 
     billData.updated_at = new Date();
 
-    const [updated] = await db('bills').where({ id }).update(billData).returning('*');
-    const savedItems = await db('bill_items').where({ bill_id: id }).orderBy('sort_order');
+    // Wrap item replace + bill update in a transaction
+    const result = await db.transaction(async (trx) => {
+      if (items) {
+        await trx('bill_items').where({ bill_id: id }).del();
 
-    res.json({ data: { ...updated, items: savedItems } });
+        const calculatedItemsFinal = items.map((item, idx) => {
+          const calc = calculateBillLineItem(item, companyState, vendorState, companyGstin, vendorGstin);
+          return { ...calc, sort_order: idx };
+        });
+
+        if (calculatedItemsFinal.length > 0) {
+          const itemRows = calculatedItemsFinal.map((item) => ({
+            bill_id: id,
+            item_id: item.item_id || null,
+            account_id: item.account_id || null,
+            item_name: item.item_name,
+            description: item.description,
+            hsn_code: item.hsn_code,
+            quantity: item.quantity,
+            unit: item.unit,
+            rate: item.rate,
+            discount_percent: item.discount_percent,
+            discount_amount: item.discount_amount,
+            gst_rate: item.gst_rate,
+            igst_amount: item.igst_amount,
+            cgst_amount: item.cgst_amount,
+            sgst_amount: item.sgst_amount,
+            amount: item.amount,
+            sort_order: item.sort_order,
+          }));
+          await trx('bill_items').insert(itemRows);
+        }
+      }
+
+      const [updated] = await trx('bills').where({ id }).update(billData).returning('*');
+      const savedItems = await trx('bill_items').where({ bill_id: id }).orderBy('sort_order');
+
+      return { updated, savedItems };
+    });
+
+    res.json({ data: { ...result.updated, items: result.savedItems } });
   } catch (err) {
     next(err);
   }
@@ -384,8 +404,10 @@ const remove = async (req, res, next) => {
       });
     }
 
-    await db('bill_items').where({ bill_id: id }).del();
-    await db('bills').where({ id }).del();
+    // Soft delete bill (line items remain linked)
+    await db('bills')
+      .where({ id })
+      .update({ deleted_at: new Date() });
 
     res.json({ message: 'Bill deleted successfully' });
   } catch (err) {

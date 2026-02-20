@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
@@ -142,7 +142,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE /:id - Delete delivery challan
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authorize('Admin'), async (req, res, next) => {
   try {
     const challan = await db('delivery_challans').where({ id: req.params.id }).first();
     if (!challan) return res.status(404).json({ error: 'Delivery challan not found' });

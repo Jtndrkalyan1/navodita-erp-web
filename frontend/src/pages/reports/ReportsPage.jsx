@@ -53,7 +53,13 @@ function getDatePreset(preset) {
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth();
-  const fmt = (d) => d.toISOString().split('T')[0];
+  // Use local date parts to avoid UTC offset shifting the date (e.g. Apr 1 IST → Mar 31 UTC)
+  const fmt = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
 
   switch (preset) {
     case 'this-month':
@@ -514,6 +520,41 @@ function TDSSummaryReport({ data }) {
   );
 }
 
+// Columns to hide entirely (internal IDs, duplicates)
+const HIDDEN_COLUMNS = new Set(['id', 'account_id', 'customer_id', 'vendor_id', 'employee_id_fk', 'invoice_id', 'bill_id', 'bank_account_id', 'chart_account_id', 'import_batch_id', 'sub_account_id', 'transfer_account_id', 'linked_invoice_ids', 'linked_bill_ids', 'company_name']);
+
+// Columns that should be formatted as ₹ currency
+const CURRENCY_COLUMNS = new Set(['total_amount', 'amount', 'balance', 'balance_due', 'total_tds', 'total_gross',
+  'sub_total', 'total_tax', 'amount_paid', 'igst_amount', 'cgst_amount', 'sgst_amount',
+  'gross_earnings', 'total_deductions', 'net_salary', 'basic_salary', 'pf_employee', 'pf_employer',
+  'esi_employee', 'esi_employer', 'total_pf', 'total_esi', 'total_net', 'total_gross',
+  'inward_value', 'outward_value', 'stock_value', 'cost_value', 'market_value',
+  'deposit_amount', 'withdrawal_amount', 'unreconciled_amount', 'book_balance',
+  'total_credits', 'total_debits', 'total_deposits', 'total_withdrawals',
+  'opening_balance', 'invoiced', 'paid', 'billed', 'cost_price', 'selling_price',
+]);
+
+// Columns that are plain numbers (right-align, no ₹)
+const NUMERIC_COLUMNS = new Set(['invoice_count', 'bill_count', 'total_quantity', 'count', 'inward_qty', 'outward_qty',
+  'total_transactions', 'reconciled_count', 'unreconciled_count', 'employee_count', 'current_stock',
+  'days_present', 'days_absent', 'half_days', 'overtime_hours', 'total_working_days',
+]);
+
+// Columns that contain date/timestamp values
+const DATE_COLUMNS = new Set(['invoice_date', 'due_date', 'bill_date', 'payment_date', 'expense_date',
+  'transaction_date', 'value_date', 'reconciled_date', 'created_at', 'updated_at', 'po_date', 'challan_date',
+]);
+
+function formatCellDate(val) {
+  if (!val) return '-';
+  try {
+    // Handle both ISO timestamps and plain date strings
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return val;
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch { return val; }
+}
+
 function GenericTableReport({ data, reportName }) {
   if (!data) return null;
   // Handle multiple data shapes:
@@ -527,20 +568,65 @@ function GenericTableReport({ data, reportName }) {
       ? rawData.items
       : [];
   if (rows.length === 0) return <NoDataMessage />;
-  const columns = Object.keys(rows[0]);
-  const currencyFields = ['total_amount', 'amount', 'balance', 'balance_due', 'total_tds', 'total_gross'];
-  const numericAlignFields = [...currencyFields, 'invoice_count', 'bill_count', 'total_quantity', 'count'];
+
+  // Filter out hidden columns
+  const allColumns = Object.keys(rows[0]);
+  const columns = allColumns.filter(col => !HIDDEN_COLUMNS.has(col));
+
+  // Compute totals for currency columns only
   const totals = {};
-  columns.forEach((col) => { if (currencyFields.includes(col)) { totals[col] = rows.reduce((s, r) => s + (parseFloat(r[col]) || 0), 0); } });
+  columns.forEach((col) => {
+    if (CURRENCY_COLUMNS.has(col)) {
+      totals[col] = rows.reduce((s, r) => s + (parseFloat(r[col]) || 0), 0);
+    }
+  });
+
   const formatHeader = (key) => key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const formatCell = (col, val) => {
+    if (val === null || val === undefined) return '-';
+    if (CURRENCY_COLUMNS.has(col)) return formatIndianCurrency(val);
+    if (DATE_COLUMNS.has(col)) return formatCellDate(val);
+    if (NUMERIC_COLUMNS.has(col)) return parseFloat(val) % 1 === 0 ? parseInt(val).toLocaleString('en-IN') : parseFloat(val).toFixed(2);
+    // Auto-detect ISO timestamps in any remaining column
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) return formatCellDate(val);
+    return val;
+  };
+
+  const isRightAlign = (col) => CURRENCY_COLUMNS.has(col) || NUMERIC_COLUMNS.has(col);
+
   return (
     <div className="bg-white rounded-lg border border-[#E5E7EB] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="bg-gray-50 border-b border-[#E5E7EB]">{columns.map((col) => (<th key={col} className={`px-4 py-3 font-medium text-[#6B7280] whitespace-nowrap ${numericAlignFields.includes(col) ? 'text-right' : 'text-left'}`}>{formatHeader(col)}</th>))}</tr></thead>
+          <thead>
+            <tr className="bg-gray-50 border-b border-[#E5E7EB]">
+              {columns.map((col) => (
+                <th key={col} className={`px-4 py-3 font-medium text-[#6B7280] whitespace-nowrap ${isRightAlign(col) ? 'text-right' : 'text-left'}`}>
+                  {formatHeader(col)}
+                </th>
+              ))}
+            </tr>
+          </thead>
           <tbody>
-            {rows.map((row, i) => (<tr key={i} className="border-b border-[#E5E7EB] last:border-b-0">{columns.map((col) => (<td key={col} className={`px-4 py-2.5 whitespace-nowrap ${numericAlignFields.includes(col) ? 'text-right font-medium text-[#333]' : 'text-[#333]'}`}>{currencyFields.includes(col) ? formatIndianCurrency(row[col]) : (row[col] ?? '-')}</td>))}</tr>))}
-            {Object.keys(totals).length > 0 && (<tr className="bg-gray-50 font-semibold border-t-2 border-[#E5E7EB]">{columns.map((col, idx) => (<td key={col} className={`px-4 py-3 ${currencyFields.includes(col) ? 'text-right text-[#333]' : 'text-[#333]'}`}>{idx === 0 ? 'Total' : totals[col] !== undefined ? formatIndianCurrency(totals[col]) : ''}</td>))}</tr>)}
+            {rows.map((row, i) => (
+              <tr key={i} className="border-b border-[#E5E7EB] last:border-b-0 hover:bg-gray-50/50">
+                {columns.map((col) => (
+                  <td key={col} className={`px-4 py-2.5 whitespace-nowrap ${isRightAlign(col) ? 'text-right font-medium text-[#333]' : 'text-[#555]'}`}>
+                    {formatCell(col, row[col])}
+                  </td>
+                ))}
+              </tr>
+            ))}
+            {Object.keys(totals).length > 0 && (
+              <tr className="bg-blue-50/50 font-semibold border-t-2 border-[#E5E7EB]">
+                {columns.map((col, idx) => (
+                  <td key={col} className={`px-4 py-3 ${isRightAlign(col) ? 'text-right text-[#333]' : 'text-[#333]'}`}>
+                    {idx === 0 ? `Total (${rows.length} rows)` : totals[col] !== undefined ? formatIndianCurrency(totals[col]) : ''}
+                  </td>
+                ))}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

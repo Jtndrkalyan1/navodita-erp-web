@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
@@ -167,7 +167,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE /:id - Delete journal entry (only if not Posted)
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authorize('Admin'), async (req, res, next) => {
   try {
     const entry = await db('journal_entries').where({ id: req.params.id }).first();
     if (!entry) return res.status(404).json({ error: 'Journal entry not found' });

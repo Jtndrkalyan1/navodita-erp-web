@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
@@ -213,7 +213,7 @@ router.put('/:id', async (req, res, next) => {
 
 // ── DELETE /:id - Delete inventory item (check for pending transactions) ──
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authorize('Admin'), async (req, res, next) => {
   try {
     const item = await db('items').where({ id: req.params.id }).first();
     if (!item) return res.status(404).json({ error: 'Inventory item not found' });

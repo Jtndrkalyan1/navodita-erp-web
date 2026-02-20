@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const db = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 // Multer config: store on disk in uploads/ directory
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
@@ -150,7 +150,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE /:id - Delete document
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authorize('Admin'), async (req, res, next) => {
   try {
     const doc = await db('documents').where({ id: req.params.id }).first();
     if (!doc) return res.status(404).json({ error: 'Document not found' });

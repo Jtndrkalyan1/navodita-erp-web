@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/investorOrder.controller');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
@@ -18,12 +18,12 @@ router.post('/partners', controller.updatePartners);
 router.post('/partners/create', controller.createPartner);
 router.get('/partners/:id', controller.getPartnerById);
 router.put('/partners/:id', controller.updatePartner);
-router.delete('/partners/:id', controller.deletePartner);
+router.delete('/partners/:id', authorize('Admin'), controller.deletePartner);
 
 // Partner transactions (statement entries)
 router.get('/partners/:id/transactions', controller.getPartnerTransactions);
 router.post('/partners/:id/transactions', controller.createPartnerTransaction);
-router.delete('/partners/transactions/:txnId', controller.deletePartnerTransaction);
+router.delete('/partners/transactions/:txnId', authorize('Admin'), controller.deletePartnerTransaction);
 
 // Available months
 router.get('/months', controller.getMonths);
@@ -39,6 +39,6 @@ router.get('/', controller.list);
 router.get('/:id', controller.getById);
 router.post('/', controller.create);
 router.put('/:id', controller.update);
-router.delete('/:id', controller.remove);
+router.delete('/:id', authorize('Admin'), controller.remove);
 
 module.exports = router;

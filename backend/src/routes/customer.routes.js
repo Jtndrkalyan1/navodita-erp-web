@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createCustomerSchema, updateCustomerSchema, deleteCustomerSchema } = require('../schemas/customer.schema');
 const customerController = require('../controllers/customer.controller');
 const statementController = require('../controllers/statement.controller');
 
@@ -17,12 +19,12 @@ router.get('/:id/statement', statementController.getCustomerStatement);
 router.get('/:id', customerController.getById);
 
 // POST / - Create customer with auto-generated code
-router.post('/', customerController.create);
+router.post('/', validate(createCustomerSchema), customerController.create);
 
 // PUT /:id - Update customer
-router.put('/:id', customerController.update);
+router.put('/:id', validate(updateCustomerSchema), customerController.update);
 
 // DELETE /:id - Soft delete (check no linked invoices)
-router.delete('/:id', customerController.remove);
+router.delete('/:id', validate(deleteCustomerSchema), authorize('Admin'), customerController.remove);
 
 module.exports = router;

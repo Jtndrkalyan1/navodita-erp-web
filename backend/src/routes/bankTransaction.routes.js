@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const controller = require('../controllers/bankTransaction.controller');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 // Multer config: store in memory for parsing (no need to persist raw files)
 const upload = multer({
@@ -45,7 +45,7 @@ router.post('/import', controller.importTransactions);
 router.post('/import-file', upload.single('file'), controller.importFile);
 router.post('/preview', upload.single('file'), controller.previewFile);
 router.post('/categorize', controller.categorize);
-router.delete('/batch/:batchId', controller.removeBatch);
+router.delete('/batch/:batchId', authorize('Admin'), controller.removeBatch);
 
 // CRUD
 router.get('/', controller.list);
@@ -54,6 +54,6 @@ router.post('/', controller.create);
 router.put('/:id/categorize', controller.categorizeTransaction);
 router.put('/:id/uncategorize', controller.uncategorizeTransaction);
 router.put('/:id', controller.update);
-router.delete('/:id', controller.remove);
+router.delete('/:id', authorize('Admin'), controller.remove);
 
 module.exports = router;

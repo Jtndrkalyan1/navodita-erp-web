@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
@@ -76,7 +76,7 @@ router.put('/liabilities/:id', async (req, res, next) => {
 });
 
 // DELETE /liabilities/:id - Delete TDS liability (only if not deposited)
-router.delete('/liabilities/:id', async (req, res, next) => {
+router.delete('/liabilities/:id', authorize('Admin'), async (req, res, next) => {
   try {
     const liability = await db('tds_liabilities').where({ id: req.params.id }).first();
     if (!liability) return res.status(404).json({ error: 'TDS liability not found' });
@@ -171,7 +171,7 @@ router.put('/challans/:id', async (req, res, next) => {
 });
 
 // DELETE /challans/:id - Delete TDS challan
-router.delete('/challans/:id', async (req, res, next) => {
+router.delete('/challans/:id', authorize('Admin'), async (req, res, next) => {
   try {
     const challan = await db('tds_challans').where({ id: req.params.id }).first();
     if (!challan) return res.status(404).json({ error: 'TDS challan not found' });

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
@@ -170,7 +170,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE /:id - Delete packing list
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authorize('Admin'), async (req, res, next) => {
   try {
     const pl = await db('packing_lists').where({ id: req.params.id }).first();
     if (!pl) return res.status(404).json({ error: 'Packing list not found' });

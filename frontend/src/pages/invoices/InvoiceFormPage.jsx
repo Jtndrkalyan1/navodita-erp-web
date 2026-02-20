@@ -370,8 +370,9 @@ export default function InvoiceFormPage() {
     }
     updateForm('customer_id', customer.id);
 
-    // Auto-fill address from customer data
+    // Auto-fill address and currency from customer data
     const addr = customer.billing_address || customer.address || {};
+    const custCurrency = customer.currency_code || 'INR';
     setForm((prev) => ({
       ...prev,
       customer_id: customer.id,
@@ -383,6 +384,8 @@ export default function InvoiceFormPage() {
       bill_to_pincode: addr.pincode || customer.pincode || '',
       bill_to_country: addr.country || customer.country || 'India',
       place_of_supply: addr.state || customer.state || prev.place_of_supply,
+      currency_code: custCurrency,
+      exchange_rate: custCurrency === 'INR' ? 1 : (customer.exchange_rate || prev.exchange_rate || 1),
     }));
     setIsDirty(true);
   }

@@ -78,7 +78,8 @@ const list = async (req, res, next) => {
         'invoices.*',
         'customers.display_name as customer_name',
         'customers.email as customer_email'
-      );
+      )
+      .whereNull('invoices.deleted_at');
 
     if (status) {
       query = query.where('invoices.status', status);
@@ -143,7 +144,8 @@ const getStats = async (req, res, next) => {
 
     let query = db('invoices')
       .leftJoin('customers', 'invoices.customer_id', 'customers.id')
-      .whereNot('invoices.status', 'Cancelled');
+      .whereNot('invoices.status', 'Cancelled')
+      .whereNull('invoices.deleted_at');
 
     if (status) query = query.where('invoices.status', status);
     if (customer_id) query = query.where('invoices.customer_id', customer_id);
@@ -192,6 +194,7 @@ const getById = async (req, res, next) => {
         'customers.phone as customer_phone'
       )
       .where('invoices.id', id)
+      .whereNull('invoices.deleted_at')
       .first();
 
     if (!invoice) {
@@ -284,40 +287,43 @@ const create = async (req, res, next) => {
     invoiceData.amount_paid = amountPaid;
     invoiceData.balance_due = parseFloat((totalAmount - amountPaid).toFixed(2));
 
-    // Insert invoice
-    const [invoice] = await db('invoices')
-      .insert(invoiceData)
-      .returning('*');
+    // Insert invoice + items in a transaction
+    const result = await db.transaction(async (trx) => {
+      const [invoice] = await trx('invoices')
+        .insert(invoiceData)
+        .returning('*');
 
-    // Insert line items
-    if (calculatedItems.length > 0) {
-      const itemRows = calculatedItems.map((item) => ({
-        invoice_id: invoice.id,
-        item_id: item.item_id || null,
-        item_name: item.item_name,
-        description: item.description,
-        hsn_code: item.hsn_code,
-        quantity: item.quantity,
-        unit: item.unit,
-        rate: item.rate,
-        discount_percent: item.discount_percent,
-        discount_amount: item.discount_amount,
-        gst_rate: item.gst_rate,
-        igst_amount: item.igst_amount,
-        cgst_amount: item.cgst_amount,
-        sgst_amount: item.sgst_amount,
-        amount: item.amount,
-        sort_order: item.sort_order,
-      }));
-      await db('invoice_items').insert(itemRows);
-    }
+      if (calculatedItems.length > 0) {
+        const itemRows = calculatedItems.map((item) => ({
+          invoice_id: invoice.id,
+          item_id: item.item_id || null,
+          item_name: item.item_name,
+          description: item.description,
+          hsn_code: item.hsn_code,
+          quantity: item.quantity,
+          unit: item.unit,
+          rate: item.rate,
+          discount_percent: item.discount_percent,
+          discount_amount: item.discount_amount,
+          gst_rate: item.gst_rate,
+          igst_amount: item.igst_amount,
+          cgst_amount: item.cgst_amount,
+          sgst_amount: item.sgst_amount,
+          amount: item.amount,
+          sort_order: item.sort_order,
+        }));
+        await trx('invoice_items').insert(itemRows);
+      }
 
-    const savedItems = await db('invoice_items')
-      .where({ invoice_id: invoice.id })
-      .orderBy('sort_order');
+      const savedItems = await trx('invoice_items')
+        .where({ invoice_id: invoice.id })
+        .orderBy('sort_order');
+
+      return { invoice, savedItems };
+    });
 
     res.status(201).json({
-      data: { ...invoice, items: savedItems },
+      data: { ...result.invoice, items: result.savedItems },
     });
   } catch (err) {
     next(err);
@@ -383,45 +389,58 @@ const update = async (req, res, next) => {
       invoiceData.amount_paid = amountPaid;
       invoiceData.balance_due = parseFloat((totalAmount - amountPaid).toFixed(2));
 
-      // Delete old items and insert new
-      await db('invoice_items').where({ invoice_id: id }).del();
-
-      if (calculatedItems.length > 0) {
-        const itemRows = calculatedItems.map((item) => ({
-          invoice_id: id,
-          item_id: item.item_id || null,
-          item_name: item.item_name,
-          description: item.description,
-          hsn_code: item.hsn_code,
-          quantity: item.quantity,
-          unit: item.unit,
-          rate: item.rate,
-          discount_percent: item.discount_percent,
-          discount_amount: item.discount_amount,
-          gst_rate: item.gst_rate,
-          igst_amount: item.igst_amount,
-          cgst_amount: item.cgst_amount,
-          sgst_amount: item.sgst_amount,
-          amount: item.amount,
-          sort_order: item.sort_order,
-        }));
-        await db('invoice_items').insert(itemRows);
-      }
+      // Delete old items and insert new (inside transaction below)
     }
 
     invoiceData.updated_at = new Date();
 
-    const [updated] = await db('invoices')
-      .where({ id })
-      .update(invoiceData)
-      .returning('*');
+    // Wrap item replace + invoice update in a transaction
+    const result = await db.transaction(async (trx) => {
+      if (items) {
+        await trx('invoice_items').where({ invoice_id: id }).del();
 
-    const savedItems = await db('invoice_items')
-      .where({ invoice_id: id })
-      .orderBy('sort_order');
+        const calculatedItemsFinal = items.map((item, idx) => {
+          const calc = calculateLineItem(item, companyState, customerState, companyGstin, customerGstin);
+          return { ...calc, sort_order: idx };
+        });
+
+        if (calculatedItemsFinal.length > 0) {
+          const itemRows = calculatedItemsFinal.map((item) => ({
+            invoice_id: id,
+            item_id: item.item_id || null,
+            item_name: item.item_name,
+            description: item.description,
+            hsn_code: item.hsn_code,
+            quantity: item.quantity,
+            unit: item.unit,
+            rate: item.rate,
+            discount_percent: item.discount_percent,
+            discount_amount: item.discount_amount,
+            gst_rate: item.gst_rate,
+            igst_amount: item.igst_amount,
+            cgst_amount: item.cgst_amount,
+            sgst_amount: item.sgst_amount,
+            amount: item.amount,
+            sort_order: item.sort_order,
+          }));
+          await trx('invoice_items').insert(itemRows);
+        }
+      }
+
+      const [updated] = await trx('invoices')
+        .where({ id })
+        .update(invoiceData)
+        .returning('*');
+
+      const savedItems = await trx('invoice_items')
+        .where({ invoice_id: id })
+        .orderBy('sort_order');
+
+      return { updated, savedItems };
+    });
 
     res.json({
-      data: { ...updated, items: savedItems },
+      data: { ...result.updated, items: result.savedItems },
     });
   } catch (err) {
     next(err);
@@ -446,9 +465,10 @@ const remove = async (req, res, next) => {
       });
     }
 
-    // Delete line items (CASCADE should handle, but be explicit)
-    await db('invoice_items').where({ invoice_id: id }).del();
-    await db('invoices').where({ id }).del();
+    // Soft delete invoice (line items remain linked)
+    await db('invoices')
+      .where({ id })
+      .update({ deleted_at: new Date() });
 
     res.json({ message: 'Invoice deleted successfully' });
   } catch (err) {

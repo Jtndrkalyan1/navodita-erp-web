@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { createVendorSchema, updateVendorSchema, deleteVendorSchema } = require('../schemas/vendor.schema');
 const ctrl = require('../controllers/vendor.controller');
 const statementController = require('../controllers/statement.controller');
 
@@ -13,8 +15,8 @@ router.get('/', ctrl.list);
 router.get('/:id/statement', statementController.getVendorStatement);
 
 router.get('/:id', ctrl.getById);
-router.post('/', ctrl.create);
-router.put('/:id', ctrl.update);
-router.delete('/:id', ctrl.remove);
+router.post('/', validate(createVendorSchema), ctrl.create);
+router.put('/:id', validate(updateVendorSchema), ctrl.update);
+router.delete('/:id', validate(deleteVendorSchema), authorize('Admin'), ctrl.remove);
 
 module.exports = router;

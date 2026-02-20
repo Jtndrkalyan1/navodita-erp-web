@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
@@ -73,7 +73,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE /:id - Delete GST filing (only if Draft)
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authorize('Admin'), async (req, res, next) => {
   try {
     const filing = await db('gst_filings').where({ id: req.params.id }).first();
     if (!filing) return res.status(404).json({ error: 'GST filing not found' });
