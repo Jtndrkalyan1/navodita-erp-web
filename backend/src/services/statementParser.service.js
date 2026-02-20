@@ -9,7 +9,9 @@
 
 const Papa = require('papaparse');
 const XLSX = require('xlsx');
-const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.mjs');
+
+// pdfjs-dist is an ES Module, so we need to import it dynamically
+let pdfjsLib = null;
 
 // ============================================================================
 // Bank Format Definitions
@@ -534,6 +536,11 @@ function parseHTMLContent(content) {
  */
 async function parsePDFContent(fileBuffer) {
   try {
+    // Dynamically import pdfjs-dist (ES Module)
+    if (!pdfjsLib) {
+      pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    }
+
     // Convert Buffer to Uint8Array for pdfjs-dist
     const uint8Array = new Uint8Array(fileBuffer);
 
