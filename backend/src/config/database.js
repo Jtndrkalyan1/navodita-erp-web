@@ -6,9 +6,10 @@ const db = knex(knexConfig[environment]);
 
 // Test connection on startup
 db.raw('SELECT 1')
-  .then(() => console.log('PostgreSQL connected successfully'))
+  .then(() => console.log('Database connected successfully'))
   .catch((err) => {
-    console.error('PostgreSQL connection failed:', err.message);
+    console.error('Database connection failed:', err.message);
+    console.error('Check DATABASE_URL or DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD env vars');
     process.exit(1);
   });
 

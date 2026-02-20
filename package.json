@@ -4,7 +4,7 @@
   "description": "Navodita ERP - Enterprise Resource Planning System",
   "main": "backend/src/index.js",
   "scripts": {
-    "start": "cd backend && npm start",
+    "start": "cd backend && npm run migrate && npm start",
     "dev": "cd backend && npm run dev",
     "migrate": "cd backend && npm run migrate",
     "postinstall": "cd backend && npm install --production"
