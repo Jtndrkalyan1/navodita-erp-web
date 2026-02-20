@@ -6,9 +6,15 @@
   "scripts": {
     "dev": "NODE_OPTIONS='--max-old-space-size=4096' nodemon src/index.js",
     "start": "node --max-old-space-size=4096 src/index.js",
-    "migrate": "knex migrate:latest",
-    "migrate:rollback": "knex migrate:rollback",
-    "seed": "knex seed:run"
+    "migrate": "knex migrate:latest --knexfile knexfile.js",
+    "migrate:rollback": "knex migrate:rollback --knexfile knexfile.js",
+    "migrate:status": "knex migrate:status --knexfile knexfile.js",
+    "seed": "knex seed:run --knexfile knexfile.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop navodita-erp-backend",
+    "pm2:restart": "pm2 restart navodita-erp-backend",
+    "pm2:logs": "pm2 logs navodita-erp-backend",
+    "pm2:monit": "pm2 monit"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
