@@ -5,6 +5,20 @@
  */
 
 exports.up = async function (knex) {
+  // ── Create investor_partners if it doesn't exist ─────────────────
+  const hasPartners = await knex.schema.hasTable('investor_partners');
+  if (!hasPartners) {
+    await knex.schema.createTable('investor_partners', (table) => {
+      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.string('partner_name', 255).notNullable();
+      table.decimal('investment_amount', 18, 2).defaultTo(0);
+      table.decimal('ratio', 6, 4).defaultTo(0);
+      table.string('partner_type', 50).defaultTo('Investment');
+      table.boolean('is_active').defaultTo(true);
+      table.timestamps(true, true);
+    });
+  }
+
   // ── Add columns to investor_partners ────────────────────────────
   const columnsToAdd = [
     { name: 'phone', type: (t) => t.string('phone', 20) },
@@ -57,6 +71,7 @@ exports.up = async function (knex) {
 exports.down = async function (knex) {
   // Drop investor_transactions table
   await knex.schema.dropTableIfExists('investor_transactions');
+  await knex.schema.dropTableIfExists('investor_partners');
 
   // Remove added columns from investor_partners
   const columnsToDrop = [
